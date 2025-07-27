@@ -14,10 +14,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-u_!i91twyg$)(6$oz(p(fg&kunhs3gk@*$p$ece@%gp7=knbbb"
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-u_!i91twyg$)(6$oz(p(fg&kunhs3gk@*$p$ece@%gp7=knbbb")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
 ALLOWED_HOSTS = [
     "techwithwayne.pythonanywhere.com",
@@ -141,9 +141,9 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.mailgun.org'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'techwithwayne@mail.techwithwayne.com'
-EMAIL_HOST_PASSWORD = 'Tylerhaller!23'
-DEFAULT_FROM_EMAIL = 'orders@techwithwayne.com'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'techwithwayne@mail.techwithwayne.com')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'orders@techwithwayne.com')
 
 # STRIPE SETTINGS
 STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
@@ -151,6 +151,14 @@ STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
 STRIPE_SUCCESS_URL = os.getenv('STRIPE_SUCCESS_URL')
 STRIPE_CANCEL_URL = os.getenv('STRIPE_CANCEL_URL')
 STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
+
+# Security settings
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
 
 print("STRIPE_SUCCESS_URL:", STRIPE_SUCCESS_URL)
 print("STRIPE_CANCEL_URL:", STRIPE_CANCEL_URL)

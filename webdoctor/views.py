@@ -16,9 +16,17 @@ def chat_widget(request):
 @csrf_exempt
 def handle_message(request):
     if request.method == 'POST':
-        data = json.loads(request.body)
+        try:
+            data = json.loads(request.body)
+        except (json.JSONDecodeError, ValueError) as e:
+            return JsonResponse({'error': 'Invalid JSON format'}, status=400)
+            
         message = data.get('message', '')
         lang = data.get('lang', 'en')
+
+        # Validate required fields
+        if not message.strip():
+            return JsonResponse({'error': 'Message cannot be empty'}, status=400)
 
         session = request.session
         conversation = session.get("conversation", {
@@ -31,14 +39,18 @@ def handle_message(request):
         # Store current user message
         conversation["history"].append({"role": "user", "content": message})
 
-        # Get AI-generated response
-        ai_response = get_agent_response(
-            history=conversation["history"],
-            stage=conversation["stage"],
-            category=conversation["category"],
-            clarifications=conversation["clarifications"],
-            lang=lang
-        )
+        try:
+            # Get AI-generated response
+            ai_response = get_agent_response(
+                history=conversation["history"],
+                stage=conversation["stage"],
+                category=conversation["category"],
+                clarifications=conversation["clarifications"],
+                lang=lang
+            )
+        except Exception as e:
+            # Log the error in a real application
+            return JsonResponse({'error': 'Unable to process request at this time'}, status=500)
 
         # Update session state
         conversation["history"].append({"role": "assistant", "content": ai_response["response"]})
@@ -57,33 +69,45 @@ def handle_message(request):
             "stage": ai_response.get("next_stage", "initial")
         })
 
-    return JsonResponse({'error': 'Invalid method'}, status=400)
+    return JsonResponse({'error': 'Invalid method'}, status=405)
 
 @csrf_exempt
 def submit_form(request):
     if request.method == 'POST':
-        data = json.loads(request.body)
-        name = data.get('name')
-        email = data.get('email')
-        issue = data.get('issue')
+        try:
+            data = json.loads(request.body)
+        except (json.JSONDecodeError, ValueError) as e:
+            return JsonResponse({'error': 'Invalid JSON format'}, status=400)
+            
+        name = data.get('name', '').strip()
+        email = data.get('email', '').strip()
+        issue = data.get('issue', '').strip()
+
+        # Validate required fields
+        if not all([name, email, issue]):
+            return JsonResponse({'error': 'All fields are required'}, status=400)
 
         if not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email):
             return JsonResponse({'error': 'Invalid email format'}, status=400)
 
-        UserInteraction.objects.create(name=name, email=email, issue_description=issue)
+        try:
+            UserInteraction.objects.create(name=name, email=email, issue_description=issue)
 
-        report_content = (
-            f"Diagnostic Report for {name}\n"
-            f"Issue: {issue}\n"
-            f"Suggested Actions: Check hosting performance, optimize images, or contact Wayne’s team for a free consultation."
-        )
+            report_content = (
+                f"Diagnostic Report for {name}\n"
+                f"Issue: {issue}\n"
+                f"Suggested Actions: Check hosting performance, optimize images, or contact Wayne's team for a free consultation."
+            )
 
-        DiagnosticReport.objects.create(
-            user_email=email,
-            issue_details=issue,
-            report_content=report_content
-        )
+            DiagnosticReport.objects.create(
+                user_email=email,
+                issue_details=issue,
+                report_content=report_content
+            )
+        except Exception as e:
+            # Log the error in a real application
+            return JsonResponse({'error': 'Unable to save report at this time'}, status=500)
 
         return JsonResponse({'message': 'Report sent to your email!'})
 
-    return JsonResponse({'error': 'Invalid method'}, status=400)
+    return JsonResponse({'error': 'Invalid method'}, status=405)
