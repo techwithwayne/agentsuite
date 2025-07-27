@@ -112,8 +112,15 @@ def get_stripe_publishable_key(request):
 class CreateCheckoutSessionView(View):
     def post(self, request, *args, **kwargs):
         try:
-            data = json.loads(request.body)
+            try:
+                data = json.loads(request.body)
+            except (json.JSONDecodeError, ValueError):
+                return JsonResponse({'error': 'Invalid JSON format'}, status=400)
+                
             order_id = data.get("order_id")
+            if not order_id:
+                return JsonResponse({'error': 'Order ID is required'}, status=400)
+                
             order = get_object_or_404(Order, id=order_id)
 
             line_items = []
