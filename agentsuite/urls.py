@@ -1,5 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 from barista_assistant.orders.views import stripe_success_view
 from webdoctor import views
 
@@ -13,3 +15,7 @@ urlpatterns = [
     path('api/', include('barista_assistant.api_urls')),
     path("success/", stripe_success_view, name="stripe-success"),
 ]
+
+# Serve media files during development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
