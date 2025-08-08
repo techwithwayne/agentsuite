@@ -2,23 +2,26 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
+project_folder = os.path.expanduser('~/agentsuite')  # This works on PythonAnywhere
+load_dotenv(os.path.join(project_folder, '.env'))
+
+# Then, set SECRET_KEY
+DJANGO_SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
+if not DJANGO_SECRET_KEY:
+    raise ValueError("DJANGO_SECRET_KEY must be set in .env file")
+SECRET_KEY = DJANGO_SECRET_KEY
+
 # Build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load .env file
-load_dotenv(os.path.join(BASE_DIR, '.env'))
 
-# Security settings
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
-if not SECRET_KEY:
-    raise ValueError("DJANGO_SECRET_KEY must be set in .env file")
 
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
-    "apps.techwithwayne.com", 
+    "apps.techwithwayne.com",
     "techwithwayne.pythonanywhere.com",
 ] + (os.getenv("ADDITIONAL_HOSTS", "").split(",") if os.getenv("ADDITIONAL_HOSTS") else [])
 
@@ -42,11 +45,11 @@ INSTALLED_APPS = [
     "corsheaders",
     "webdoctor",
     "captcha",
-    
+
     # Apps being built
     "personal_coach",
     "promptopilot",
-    
+
     "website_analyzer",
     "barista_assistant",
     "barista_assistant.menu",
@@ -66,7 +69,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
 # URL configuration
@@ -127,7 +130,7 @@ USE_TZ = True
 # ✅ ENHANCED SECURITY SETTINGS
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'SAMEORIGIN'
+# X_FRAME_OPTIONS = 'ALLOW-FROM https://showcase.techwithwayne.com'
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
@@ -207,7 +210,7 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_HSTS_SECONDS = 31536000  # 1 year
 SECURE_SSL_REDIRECT = not DEBUG  # redirect only if in prod
 
-# ✅ SESSION CONFIGURATION  
+# ✅ SESSION CONFIGURATION
 SESSION_COOKIE_AGE = 3600  # 1 hour
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True

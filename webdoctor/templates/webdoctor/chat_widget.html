@@ -1,3 +1,4 @@
+<!--- chat_widget.html -->
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
@@ -11,12 +12,44 @@
     }
   </style>
 
-
   <script>
 // ✅ ENHANCED CONVERSATION RESET - GUARANTEED TO WORK
+// ✅ Define getCsrfToken function first
+function getCsrfToken() {
+    // Method 1: From JavaScript window variable (most reliable)
+    if (window.csrfToken) {
+        return window.csrfToken;
+    }
+
+    // Method 2: From hidden input
+    const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    if (csrfInput && csrfInput.value) {
+        return csrfInput.value;
+    }
+
+    // Method 3: From meta tag (fallback)
+    const metaToken = document.querySelector('meta[name="csrf-token"]');
+    if (metaToken) {
+        const token = metaToken.getAttribute('content');
+        return token || '';
+    }
+
+    // Method 4: From cookie (last resort)
+    const cookieValue = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1];
+    if (cookieValue) {
+        return cookieValue;
+    }
+
+    console.warn('CSRF token not found');
+    return '';
+}
+
 async function resetConversationOnLoad() {
     console.log('🔄 Starting conversation reset...');
-    
+
     try {
         // Method 1: Call the reset endpoint
         const response = await fetch('/agent/reset_conversation/', {
@@ -30,7 +63,7 @@ async function resetConversationOnLoad() {
                 reason: 'page_load'
             })
         });
-        
+
         if (response.ok) {
             const data = await response.json();
             console.log('✅ Server-side conversation reset successful:', data);
@@ -40,7 +73,7 @@ async function resetConversationOnLoad() {
     } catch (error) {
         console.warn('⚠️ Server-side reset error:', error);
     }
-    
+
     // Method 2: Force reset via first message (BACKUP)
     try {
         console.log('🔄 Sending force reset message...');
@@ -56,14 +89,14 @@ async function resetConversationOnLoad() {
                 lang: 'en'
             })
         });
-        
+
         if (forceResetResponse.ok) {
             console.log('✅ Force reset message sent successfully');
         }
     } catch (error) {
         console.warn('⚠️ Force reset message failed:', error);
     }
-    
+
     console.log('🔄 Conversation reset complete');
 }
 
@@ -95,7 +128,7 @@ window.addEventListener('pageshow', function(event) {
     cssLink.rel = "stylesheet";
     cssLink.href = isLocal
       ? "https://127.0.0.1:8000/static/webdoctor/css/chat_widget.css"
-      : "https://apps.techwithwayne.com/static/webdoctor/css/chat_widget.css";
+      : "https://apps.techwithwayne.com/static/webdoctor/css/chat_widget.css?v=0.1.0";
     document.head.appendChild(cssLink);
   </script>
 </head>
@@ -104,31 +137,31 @@ window.addEventListener('pageshow', function(event) {
         <div id="chat-header">
             WebDoctor AI Assistant - Shirley
         </div>
-        
+
         <div class="chat-body" id="chat-body">
             <!-- Messages will be dynamically added here -->
         </div>
-        
+
         <div class="chat-input-wrapper">
-            <input 
-                type="text" 
-                id="user-input" 
+            <input
+                type="text"
+                id="user-input"
                 placeholder="Describe your website issue..."
                 maxlength="500"
             >
             <button id="send-button" type="button">➤</button>
         </div>
-        
+
         <div class="form-section" id="form-section">
-            <input 
-                type="text" 
-                id="form-name" 
+            <input
+                type="text"
+                id="form-name"
                 placeholder="Your Name"
                 maxlength="100"
             >
-            <input 
-                type="email" 
-                id="form-email" 
+            <input
+                type="email"
+                id="form-email"
                 placeholder="Your Email"
                 maxlength="100"
             >
@@ -146,15 +179,13 @@ window.addEventListener('pageshow', function(event) {
     </script>
 
   <script>
-    // ✅ Load JS dynamically and attach events AFTER it’s loaded
+    // ✅ Load JS dynamically and attach events AFTER it's loaded
     const js = document.createElement("script");
     js.src = isLocal
       ? "https://127.0.0.1:8000/static/webdoctor/js/chat_widget.js"
-      : "https://apps.techwithwayne.com/static/webdoctor/js/chat_widget.js?v=0.1.1.1.15";
+      : "https://apps.techwithwayne.com/static/webdoctor/js/chat_widget.js";
 
     document.body.appendChild(js);
   </script>
 </body>
 </html>
-
-

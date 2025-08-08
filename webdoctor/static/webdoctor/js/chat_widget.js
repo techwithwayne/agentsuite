@@ -1,4 +1,4 @@
-// JavaScript for WebDoctor Chat Widget - FIXED VERSION WITH SOUND
+// JavaScript for WebDoctor Chat Widget - COMPLETE VERSION WITH HEIGHT MANAGEMENT webdoctor -> chat_widget.js
 class WebDoctorChat {
   constructor() {
     console.log("WebDoctorChat constructor called");
@@ -9,6 +9,8 @@ class WebDoctorChat {
     this.formOffered = false;
     this.formAccepted = false;
     this.sendInProgress = false; // ✅ Add flag to prevent double-sending
+    this.audioEnabled = false; // ✅ Track audio state
+    this.userHasInteracted = false; // ✅ Track user interaction
 
     this.greetings = [
       "Hey there! I'm Shirley, your website's doctor. What seems to be the issue today?",
@@ -23,9 +25,12 @@ class WebDoctorChat {
     this.init();
   }
 
-  // ✅ New method to initialize audio
+  // ✅ New method to initialize audio with user interaction detection
   initializeAudio() {
     console.log("🔊 Initializing typing sound...");
+
+    this.audioEnabled = false;
+    this.userHasInteracted = false;
 
     try {
       // Create audio element for typing sound
@@ -53,16 +58,68 @@ class WebDoctorChat {
 
       // Preload the audio
       this.typingSound.load();
+
+      // Set up user interaction detection
+      this.setupUserInteractionDetection();
     } catch (error) {
       console.warn("⚠️ Audio initialization failed:", error);
       this.typingSound = null;
     }
   }
 
-  // ✅ New method to play typing sound
+  // ✅ New method to detect user interaction and enable audio
+  setupUserInteractionDetection() {
+    const enableAudio = () => {
+      if (!this.userHasInteracted && this.typingSound) {
+        console.log("👆 User interaction detected, enabling audio...");
+
+        // Try to play and immediately pause to unlock audio context
+        this.typingSound.play()
+          .then(() => {
+            this.typingSound.pause();
+            this.typingSound.currentTime = 0;
+            this.audioEnabled = true;
+            this.userHasInteracted = true;
+            console.log("🔊 Audio enabled successfully after user interaction");
+          })
+          .catch((error) => {
+            console.log("🔇 Audio remains disabled:", error.message);
+            this.audioEnabled = false;
+          });
+      }
+    };
+
+    // Listen for various user interaction events
+    const interactionEvents = ['click', 'keydown', 'touchstart', 'mousedown'];
+
+    interactionEvents.forEach(eventType => {
+      document.addEventListener(eventType, enableAudio, { once: true });
+    });
+
+    // Also try when user focuses on input
+    setTimeout(() => {
+      const userInput = document.getElementById("user-input");
+      if (userInput) {
+        userInput.addEventListener('focus', enableAudio, { once: true });
+        userInput.addEventListener('click', enableAudio, { once: true });
+      }
+    }, 1000);
+  }
+
+  // ✅ Updated method to play typing sound with interaction check
   playTypingSound() {
     if (!this.typingSound) {
       console.log("🔇 No typing sound available");
+      return;
+    }
+
+    if (!this.userHasInteracted) {
+      console.log("🔇 Skipping sound - waiting for user interaction");
+      return;
+    }
+
+    if (!this.audioEnabled) {
+      console.log("🔇 Audio not enabled yet");
       return;
     }
 
@@ -80,12 +137,14 @@ class WebDoctorChat {
             console.log("🔊 Typing sound played successfully");
           })
           .catch((error) => {
-            console.warn("⚠️ Could not play typing sound:", error);
-            // This is common if user hasn't interacted with page yet
+            console.log("🔇 Could not play typing sound:", error.message);
+            // Disable audio if it continues to fail
+            this.audioEnabled = false;
           });
       }
     } catch (error) {
       console.warn("⚠️ Error playing typing sound:", error);
+      this.audioEnabled = false;
     }
   }
 
@@ -216,11 +275,15 @@ class WebDoctorChat {
     this.scrollToBottom();
     this.messageCount++;
 
+    // ✅ Trigger height update after adding message
+    if (window.iframeHeightManager) {
+      window.iframeHeightManager.triggerHeightUpdate();
+    }
+
     console.log("✅ User message added, total messages:", this.messageCount);
   }
 
-  // In your chat_widget.js, replace the addBotMessage function with this:
-
+  // Updated addBotMessage function with height management
   addBotMessage(message, animate = false, callback = null) {
     console.log("🤖 Adding bot message:", message, "animate:", animate);
 
@@ -250,10 +313,15 @@ class WebDoctorChat {
       if (callback) {
         setTimeout(callback, 100);
       }
+
+      // ✅ Trigger height update after adding message
+      if (window.iframeHeightManager) {
+        window.iframeHeightManager.triggerHeightUpdate();
+      }
     }
   }
 
-  // ✅ Also update the animateTyping function to handle callback:
+  // ✅ Updated animateTyping function to handle callback and height updates:
   animateTyping(messageDiv, message, callback = null) {
     console.log("⌨️ Animating typing for message:", message);
 
@@ -277,18 +345,29 @@ class WebDoctorChat {
         typingSpan.textContent += message.charAt(index);
         index++;
         this.scrollToBottom();
+
+        // ✅ Trigger height update during typing animation
+        if (window.iframeHeightManager && index % 10 === 0) { // Every 10 characters
+          window.iframeHeightManager.triggerHeightUpdate();
+        }
       } else {
         console.log("✅ Typing animation complete");
         clearInterval(typeInterval);
         this.isTyping = false;
 
-        // ✅ Execute callback after typing is complete
-        if (callback) {
-          console.log("🎯 Executing callback after typing animation");
-          setTimeout(callback, 200); // Small delay for better UX
+        // ✅ Final height update after typing is complete
+        if (window.iframeHeightManager) {
+          window.iframeHeightManager.triggerHeightUpdate();
         }
 
+
+
         this.checkForFormTrigger(message);
+
+    // ✅ Show audio prompt after first message if audio isn't enabled
+    if (!this.audioEnabled && !this.userHasInteracted && this.messageCount <= 2) {
+      setTimeout(() => this.showAudioPrompt(), 2000);
+    }
       }
     }, delay);
   }
@@ -307,6 +386,11 @@ class WebDoctorChat {
     chatBody.appendChild(typingDiv);
     this.scrollToBottom();
 
+    // ✅ Trigger height update after showing typing indicator
+    if (window.iframeHeightManager) {
+      window.iframeHeightManager.triggerHeightUpdate();
+    }
+
     console.log("✅ Typing indicator shown");
     return typingDiv;
   }
@@ -316,7 +400,86 @@ class WebDoctorChat {
     if (typingIndicator) {
       typingIndicator.remove();
       console.log("✅ Typing indicator removed");
+
+      // ✅ Trigger height update after removing typing indicator
+      if (window.iframeHeightManager) {
+        window.iframeHeightManager.triggerHeightUpdate();
+      }
     }
+  }
+
+
+  // ✅ New method to manually enable audio
+  enableAudio() {
+    console.log("👆 Manual audio enable triggered");
+
+    if (this.typingSound && !this.audioEnabled) {
+      this.typingSound.play()
+        .then(() => {
+          this.typingSound.pause();
+          this.typingSound.currentTime = 0;
+          this.audioEnabled = true;
+          this.userHasInteracted = true;
+          console.log("🔊 Audio enabled manually");
+
+          // Remove the audio prompt
+          const audioPrompt = document.getElementById("audio-prompt");
+          if (audioPrompt) {
+            audioPrompt.style.opacity = '0';
+            setTimeout(() => {
+              if (audioPrompt.parentNode) {
+                audioPrompt.parentNode.removeChild(audioPrompt);
+              }
+            }, 300);
+          }
+
+          // Show confirmation
+          this.showAudioConfirmation();
+        })
+        .catch((error) => {
+          console.warn("🔇 Could not enable audio:", error);
+        });
+    }
+  }
+
+  // ✅ New method to show audio enabled confirmation
+  showAudioConfirmation() {
+    const chatBody = document.getElementById("chat-body");
+    if (!chatBody) return;
+
+    const confirmation = document.createElement("div");
+    confirmation.style.cssText = `
+      background: linear-gradient(135deg, #4CAF50, #66BB6A);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 15px;
+      font-size: 11px;
+      text-align: center;
+      margin: 5px auto;
+      max-width: 200px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    `;
+    confirmation.innerHTML = '🔊 Sound enabled!';
+
+    chatBody.appendChild(confirmation);
+
+    // Animate in
+    setTimeout(() => {
+      confirmation.style.opacity = '1';
+    }, 100);
+
+    // Animate out
+    setTimeout(() => {
+      confirmation.style.opacity = '0';
+      setTimeout(() => {
+        if (confirmation.parentNode) {
+          confirmation.parentNode.removeChild(confirmation);
+        }
+      }, 300);
+    }, 2000);
+
+    this.scrollToBottom();
   }
 
   checkForFormTrigger(message) {
@@ -349,6 +512,13 @@ class WebDoctorChat {
       setTimeout(() => {
         const nameInput = document.getElementById("form-name");
         if (nameInput) nameInput.focus();
+
+        // ✅ Trigger height update after showing form
+        if (window.iframeHeightManager) {
+          setTimeout(() => {
+            window.iframeHeightManager.triggerHeightUpdate();
+          }, 300);
+        }
       }, 300);
       console.log("✅ Form shown");
     }
@@ -359,12 +529,19 @@ class WebDoctorChat {
     const formSection = document.getElementById("form-section");
     if (formSection) {
       formSection.style.display = "none";
+
+      // ✅ Trigger height update after hiding form
+      if (window.iframeHeightManager) {
+        setTimeout(() => {
+          window.iframeHeightManager.triggerHeightUpdate();
+        }, 100);
+      }
+
       console.log("✅ Form hidden");
     }
   }
 
-  // In your chat_widget.js, replace the sendMessage function with this fixed version:
-
+  // Updated sendMessage function with height management
   async sendMessage() {
     console.log(
       "Send message called, isTyping:",
@@ -688,6 +865,160 @@ class WebDoctorChat {
   }
 }
 
+// ✅ NEW: Iframe Height Manager Class
+class IframeHeightManager {
+    constructor() {
+        this.lastHeight = 0;
+        this.resizeObserver = null;
+        this.debounceTimeout = null;
+        this.init();
+    }
+
+    init() {
+        console.log('📏 Initializing iframe height manager');
+
+        // Monitor height changes
+        this.startHeightMonitoring();
+
+        // Send initial height
+        setTimeout(() => {
+            this.sendHeightToParent();
+        }, 1000);
+    }
+
+    startHeightMonitoring() {
+        // Method 1: Use ResizeObserver (modern browsers)
+        if (window.ResizeObserver) {
+            this.resizeObserver = new ResizeObserver(entries => {
+                this.debounceHeightUpdate();
+            });
+
+            // Observe the chat widget
+            const chatWidget = document.querySelector('.chat-widget');
+            if (chatWidget) {
+                this.resizeObserver.observe(chatWidget);
+            }
+
+            // Also observe the body
+            this.resizeObserver.observe(document.body);
+        }
+
+        // Method 2: Monitor DOM changes
+        const observer = new MutationObserver((mutations) => {
+            let shouldUpdate = false;
+
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'childList' ||
+                    mutation.type === 'attributes' ||
+                    mutation.type === 'subtree') {
+                    shouldUpdate = true;
+                }
+            });
+
+            if (shouldUpdate) {
+                this.debounceHeightUpdate();
+            }
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['style', 'class']
+        });
+
+        // Method 3: Periodic height check
+        setInterval(() => {
+            this.sendHeightToParent();
+        }, 3000);
+    }
+
+    debounceHeightUpdate() {
+        // Debounce rapid height changes
+        if (this.debounceTimeout) {
+            clearTimeout(this.debounceTimeout);
+        }
+
+        this.debounceTimeout = setTimeout(() => {
+            this.sendHeightToParent();
+        }, 150);
+    }
+
+    getOptimalHeight() {
+        // Get various height measurements
+        const bodyScrollHeight = document.body.scrollHeight;
+        const documentHeight = document.documentElement.scrollHeight;
+        const windowHeight = window.innerHeight;
+        const chatWidget = document.querySelector('.chat-widget');
+
+        let widgetHeight = 0;
+        if (chatWidget) {
+            const rect = chatWidget.getBoundingClientRect();
+            widgetHeight = rect.height;
+        }
+
+        // Use the maximum of all measurements, plus some padding
+        const maxHeight = Math.max(
+            bodyScrollHeight,
+            documentHeight,
+            windowHeight,
+            widgetHeight
+        );
+
+        // Add padding for better UX and ensure minimum height
+        const finalHeight = Math.max(400, maxHeight + 50);
+
+        // Cap the maximum height to prevent excessive iframe sizes
+        return Math.min(finalHeight, 800);
+    }
+
+    sendHeightToParent() {
+        const newHeight = this.getOptimalHeight();
+
+        // Only send if height has changed significantly
+        if (Math.abs(newHeight - this.lastHeight) > 15) {
+            this.lastHeight = newHeight;
+
+            try {
+                // Send message to parent window with multiple message formats for compatibility
+                const heightMessage = {
+                    type: 'resize',
+                    height: newHeight,
+                    timestamp: Date.now(),
+                    source: 'webdoctor-widget'
+                };
+
+                window.parent.postMessage(heightMessage, '*');
+
+                // Also send with alternative format for compatibility
+                window.parent.postMessage({
+                    type: 'iframeResize',
+                    height: newHeight,
+                    timestamp: Date.now(),
+                    source: 'webdoctor-widget'
+                }, '*');
+
+                console.log(`📤 Sent height to parent: ${newHeight}px`);
+            } catch (error) {
+                console.warn('Failed to send height to parent:', error);
+            }
+        }
+    }
+
+    // Manual height update trigger
+    triggerHeightUpdate() {
+        setTimeout(() => {
+            this.sendHeightToParent();
+        }, 100);
+    }
+
+    // Force immediate height update
+    forceHeightUpdate() {
+        this.lastHeight = 0; // Reset to force update
+        this.sendHeightToParent();
+    }
+}
+
 // Enhanced initialization with DOM ready check
 console.log("Script loaded, checking DOM state...");
 console.log("Document ready state:", document.readyState);
@@ -701,6 +1032,12 @@ function initializeChat() {
 
     // ✅ Store reference globally for debugging
     window.webdoctorChat = chat;
+
+    // ✅ Initialize height manager
+    setTimeout(() => {
+        window.iframeHeightManager = new IframeHeightManager();
+        console.log('✅ Iframe height manager initialized');
+    }, 1500);
 
     // Test button immediately after initialization
     setTimeout(() => {
@@ -737,7 +1074,21 @@ document.addEventListener("visibilitychange", () => {
     if (userInput) {
       setTimeout(() => userInput.focus(), 100);
     }
+
+    // ✅ Force height update when page becomes visible
+    if (window.iframeHeightManager) {
+      setTimeout(() => {
+        window.iframeHeightManager.forceHeightUpdate();
+      }, 200);
+    }
   }
+});
+
+// ✅ Handle window resize
+window.addEventListener('resize', () => {
+    if (window.iframeHeightManager) {
+        window.iframeHeightManager.triggerHeightUpdate();
+    }
 });
 
 // ✅ Add global error handler for unhandled promise rejections
@@ -745,6 +1096,15 @@ window.addEventListener("unhandledrejection", function (event) {
   console.error("Unhandled promise rejection:", event.reason);
   // Prevent the default browser behavior
   event.preventDefault();
+});
+
+// ✅ Handle page show event (back/forward navigation)
+window.addEventListener('pageshow', function(event) {
+    if (event.persisted && window.iframeHeightManager) {
+        setTimeout(() => {
+            window.iframeHeightManager.forceHeightUpdate();
+        }, 300);
+    }
 });
 
 console.log("Script execution complete");
